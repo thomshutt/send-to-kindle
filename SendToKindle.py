@@ -1,11 +1,14 @@
+import bottle
 import smtplib, os
 import sys
-from bottle import get, post, run, request 
+from bottle import *
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEBase import MIMEBase
 from email.MIMEText import MIMEText
 from email.Utils import COMMASPACE, formatdate
 from email import Encoders
+
+bottle.BaseRequest.MEMFILE_MAX = 1024 * 1024 * 5 # Bytes
 
 if len(sys.argv) != 4:
     print "Usage: "
@@ -58,18 +61,21 @@ def deal_with_file():
     upload = request.files.get('upload')
     name, ext = os.path.splitext(upload.filename)
 
-    if ext not in ('.txt','.pdf','.mobi', '.epub'):
+    if ext not in ('.azw3', '.txt','.pdf','.mobi', '.epub'):
         return 'File extension not allowed.'
 
     # Get the data
-    raw = upload.value;
+    raw = upload.file;
 
     # Write to file
     filename = "tmp" + ext
     with open(filename, 'wb') as f:
-        f.write(raw)
+        f.write(raw.read())
 
-    os.system("ebook-convert tmp" + ext + " tmp.mobi")
+    if ext == '.pdf':
+        os.system("./calibre/ebook-convert tmp" + ext + " tmp.mobi --unwrap-factor 0.2")
+    else:
+        os.system("./calibre/ebook-convert tmp" + ext + " tmp.mobi")
 
     send_mail(email_from, [email_to], "", "", ["tmp.mobi"])
 
@@ -92,4 +98,4 @@ def do_login():
 
 
 
-run(host='localhost', port=int(port), reloader=True)
+run(host='0.0.0.0', port=int(port), reloader=True)
